@@ -9,12 +9,21 @@
     android:clipToPadding="false"
     tools:context=".MainActivity">
 
-        <!--android:layout_height="346.4dp"-->
+    <View
+        android:layout_width="345dp"
+        android:layout_height="230dp"
+        android:visibility="gone"
+        android:background="@color/colorPrimary"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+
+    <!--android:layout_height="346.4dp"-->
     <com.lovejjfg.dvdshow.DVDView
         android:layout_width="300dp"
         android:layout_height="200dp"
-        android:background="@color/colorPrimary"
-
+        android:background="@color/colorPrimaryDark"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
