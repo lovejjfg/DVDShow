@@ -11,6 +11,7 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.util.Log
 import android.view.View
+import android.view.animation.LinearInterpolator
 
 /**
  * Created by joe on 2018/12/22.
@@ -21,7 +22,7 @@ class DVDView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
     private val paint: Paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rectF = RectF()
-    private var startAngle = (Math.PI * 2 / 3)
+    private var startAngle = (Math.PI * 3 / 4)
     private val startSide = 0
     private val path = Path()
     private val pathMeasure = PathMeasure()
@@ -33,11 +34,14 @@ class DVDView @JvmOverloads constructor(
     private var currentY = 0f
     private var tanValue = 1f
     private var needRevert = false
+    private var maxLength = 0.toDouble()
+    private val maxDuration: Long = 2000
+    private var radius = 20f
 
     init {
         paint.color = Color.RED
         paint.style = Paint.Style.FILL
-        animator.duration = 3000
+        animator.interpolator = LinearInterpolator()
         animator.addUpdateListener {
             val value = it.animatedValue as Float
             pathMeasure.getPosTan(value, floatArray, tanFloatArray)
@@ -48,6 +52,9 @@ class DVDView @JvmOverloads constructor(
 //            println("计算角度：：：π/${Math.PI / tanAngle}")
             if (tanValue > 1.74) {
                 throw IllegalStateException("参数不对了：$tanValue")
+            }
+            if (tanValue.isNaN()) {
+                throw IllegalStateException("参数不对了：y:${tanFloatArray[1]}  x:${tanFloatArray[0]}")
             }
 //            Log.e("calculate", "角度：tanValue:$tanValue")
             reCalculate = it.animatedFraction == 1f
@@ -61,22 +68,25 @@ class DVDView @JvmOverloads constructor(
         }
         postDelayed({
             currentX = 0f
-            currentY = rectF.height() * .6f
+            currentY = rectF.height() * .4f
             tanValue = Math.abs(Math.tan(startAngle).toFloat())
+            maxLength = Math.sqrt(rectF.width() * rectF.width().toDouble() + rectF.height() * rectF.height().toDouble())
 
             calculate()
         }, 1000)
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-        if (changed) rectF.set(left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat())
+        if (changed) rectF.set(
+            left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat()
+        )
     }
 
     override fun onDraw(canvas: Canvas) {
         if (reCalculate) {
             calculate()
         }
-        canvas.drawCircle(floatArray[0], floatArray[1], 10F, paint)
+        canvas.drawCircle(floatArray[0], floatArray[1], radius, paint)
     }
 
     private fun calculate() {
@@ -107,7 +117,10 @@ class DVDView @JvmOverloads constructor(
             }
         }
         pathMeasure.setPath(path, false)
-        animator.setFloatValues(0F, pathMeasure.length)
+
+        val length = pathMeasure.length
+        animator.duration = (length / maxLength * maxDuration).toLong()
+        animator.setFloatValues(0F, length)
         animator.start()
     }
 
@@ -157,15 +170,16 @@ class DVDView @JvmOverloads constructor(
             //todo
             var resultX = rectF.width()
             val dx = resultX - currentX
-            val resultY = rectF.height() - dx * tanValue
-            if (resultY < 0) {
+            val resultY = dx * tanValue
+            val dy = resultY - rectF.height()
+            if (dy > 0) {
                 Log.e("calculate", " handRevertUp 上升:越界情况")
                 resultX = rectF.height() / tanValue
-                path.lineTo(resultX - (-resultY / tanValue), rectF.height())
+                path.lineTo(currentX + resultX, 0f)
                 needRevert = false
             } else {
                 Log.e("calculate", " handRevertUp 上升:正常情况")
-                path.lineTo(resultX, resultY)
+                path.lineTo(rectF.width(), -dy)
                 needRevert = true
             }
         }
