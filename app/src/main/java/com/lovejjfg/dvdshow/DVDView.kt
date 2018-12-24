@@ -39,11 +39,12 @@ class DVDView @JvmOverloads constructor(
     private var tanValue = 1f
     private var needRevert = false
     private var maxLength = 0.toDouble()
-    private val maxDuration: Long = 200
+    private val maxDuration: Long = 500
     private var radius = 40f
     private var hintText = "DVD"
     private var textWidth = 0
     private var textHeight = 0
+    private var state = STATE_DEFAULT
 
     init {
         paint.color = Color.RED
@@ -103,14 +104,17 @@ class DVDView @JvmOverloads constructor(
     }
 
     override fun onDraw(canvas: Canvas) {
+        handDraw(canvas)
+    }
+
+   private fun handDraw(canvas: Canvas) {
         if (floatArray[0] == 0f && floatArray[1] == 0f) {
             return
         }
-
         if (reCalculate) {
             calculate()
         }
-//        canvas.drawCircle(floatArray[0], floatArray[1], radius, paint)
+        //        canvas.drawCircle(floatArray[0], floatArray[1], radius, paint)
         canvas.drawOval(ovalRectF, paint)
         canvas.drawText(
             hintText,
@@ -166,11 +170,12 @@ class DVDView @JvmOverloads constructor(
 
     private fun handUp() {
         if (currentX == startX()) {// normal
-            val resultX = currentX + (currentY - startY()) / tanValue
-            val dx = resultX - rectF.width()
+            val resultX = startX() + (currentY - startY()) / tanValue
+            val dx = resultX - endX()
             if (resultX > endX()) {
                 Log.e("calculate", "上升 handUp:越界情况")
-                path.lineTo(endX(), (dx - ovalX()) * tanValue)
+                val dy = tanValue * (endX() - currentX)
+                path.lineTo(endX(), currentY - dy)
             } else {
                 Log.e("calculate", "上升 handUp:正常情况")
                 path.lineTo(resultX, startY())
@@ -188,6 +193,11 @@ class DVDView @JvmOverloads constructor(
                 path.lineTo(currentX - resultX, rectF.height() - ovalY())
                 needRevert = false
             }
+        } else {
+            Log.e(
+                "calculate",
+                " handUp 异常情况：currentX =$currentX startX=${startX()} endx:${endX()} startX=${startX()} endx:${endX()}"
+            )
         }
     }
 
@@ -195,11 +205,13 @@ class DVDView @JvmOverloads constructor(
         if (currentY == startY()) {// normal
             val resultX = currentX - startX()
             val resultY = tanValue * resultX + startY()
-            val dy = resultY - rectF.height()
-            if (dy > ovalY()) {
+            if (resultY > endY()) {
+                val dx = (endY() - currentY) / tanValue
                 Log.e("calculate", "下降 handRevertUp:越界情况")
-                val dx = endY() - currentY / tanValue
                 path.lineTo(currentX - dx, endY())
+                if (currentX - dx < startX()) {
+                    throw RuntimeException("${currentX - dx} 不符合规范")
+                }
                 needRevert = false
             } else {
                 Log.e("calculate", "下降 handRevertUp:正常情况")
@@ -223,6 +235,8 @@ class DVDView @JvmOverloads constructor(
                 path.lineTo(endX(), resultY)
                 needRevert = true
             }
+        } else {
+            Log.e("calculate", " handRevertUp 异常情况：currentY =$currentY startY=${startY()} endY:${endY()} ")
         }
     }
 
@@ -250,6 +264,9 @@ class DVDView @JvmOverloads constructor(
                 Log.e("calculate", "上升 handDown:正常情况")
                 false
             }
+        } else {
+            Log.e("calculate", " handDown 异常情况：currentY =$currentY startY=${startY()} endY:${endY()}")
+
         }
     }
 
@@ -284,6 +301,8 @@ class DVDView @JvmOverloads constructor(
                 Log.e("calculate", " handRecertDown 下降:正常情况")
                 needRevert = true
             }
+        } else {
+            Log.e("calculate", " handRecertDown 异常情况：currentX =$currentX startX=${startX()} endx:${endX()}")
         }
     }
 
@@ -293,5 +312,10 @@ class DVDView @JvmOverloads constructor(
     private fun Context.spToPx(sp: Float): Float {
         val scale = resources.displayMetrics.scaledDensity
         return (sp * scale + 0.5f)
+    }
+
+    companion object {
+        const val STATE_DEFAULT = 1
+        const val STATE_SUCCESS = 2
     }
 }
