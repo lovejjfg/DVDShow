@@ -39,19 +39,29 @@ class DVDView @JvmOverloads constructor(
     private var tanValue = 1f
     private var needRevert = false
     private var maxLength = 0.toDouble()
-    private val maxDuration: Long = 500
+    private val maxDuration: Long = 2000
     private var radius = 40f
     private var hintText = "DVD"
     private var textWidth = 0
     private var textHeight = 0
     private var state = STATE_DEFAULT
+    private var shape = SHAPE_OVAL
+    private val colors: IntArray = IntArray(4)
+    private var calculateCount = 1
 
     init {
+        colors[0] = Color.RED
+        colors[1] = Color.BLUE
+        colors[2] = Color.GREEN
+        colors[3] = Color.YELLOW
+        val a = context.obtainStyledAttributes(attrs, R.styleable.DVDView)
+        radius = a.getDimension(R.styleable.DVDView_DVDRadio, context.dpToPx(20f))
+        shape = a.getInt(R.styleable.DVDView_DVDShape, SHAPE_OVAL)
+        a.recycle()
         paint.color = Color.RED
         paint.style = Paint.Style.FILL
-        textPaint.textSize = context.spToPx(16f)
+        textPaint.textSize = context.spToPx(14f)
         textPaint.color = Color.WHITE
-        radius = context.dpToPx(10f)
         val fontMetrics = Rect()
         textPaint.getTextBounds(hintText, 0, hintText.length, fontMetrics)
         textWidth = fontMetrics.width()
@@ -67,15 +77,17 @@ class DVDView @JvmOverloads constructor(
 //            println("具体值：：：： $tanValue")
 //            println("计算角度：：：π/${Math.PI / tanAngle}")
             println(tanValue)
-            if (tanValue >= 1.74 || tanValue <= 1.72) {
-                throw IllegalStateException("参数不对了：$tanValue")
-            }
+//            if (tanValue >= 1.74 || tanValue <= 1.72) {
+//                throw IllegalStateException("参数不对了：$tanValue")
+//            }
             if (tanValue.isNaN()) {
                 throw IllegalStateException("参数不对了：y:${tanFloatArray[1]}  x:${tanFloatArray[0]}")
             }
 //            Log.e("calculate", "角度：tanValue:$tanValue")
             reCalculate = it.animatedFraction == 1f
             if (reCalculate) {
+                ++calculateCount
+                paint.color = colors[calculateCount % colors.size]
                 startAngle += Math.PI / 2
             }
             currentX = floatArray[0]
@@ -107,15 +119,18 @@ class DVDView @JvmOverloads constructor(
         handDraw(canvas)
     }
 
-   private fun handDraw(canvas: Canvas) {
+    private fun handDraw(canvas: Canvas) {
         if (floatArray[0] == 0f && floatArray[1] == 0f) {
             return
         }
         if (reCalculate) {
             calculate()
         }
-        //        canvas.drawCircle(floatArray[0], floatArray[1], radius, paint)
-        canvas.drawOval(ovalRectF, paint)
+        if (shape == SHAPE_OVAL) {
+            canvas.drawOval(ovalRectF, paint)
+        } else {
+            canvas.drawCircle(floatArray[0], floatArray[1], radius, paint)
+        }
         canvas.drawText(
             hintText,
             ovalRectF.centerX() - textWidth * .5f,
@@ -127,6 +142,9 @@ class DVDView @JvmOverloads constructor(
     private fun calculate() {
         //(+,-)(+,+)(-,+)(-,-)
         //(-PI/4 PI/4 3PI/4 5PI/4) (PI/4(down) 3PI/4(up))
+        if (state == STATE_ERROR) {
+            return
+        }
         when {
             startAngle == 0.toDouble() -> startAngle = 3 * Math.PI / 4
             startAngle < 0 -> while (startAngle < 0) {
@@ -159,10 +177,8 @@ class DVDView @JvmOverloads constructor(
         animator.start()
     }
 
-    //todo support
-    private fun ovalX() = context.dpToPx(15f)
-
-    private fun ovalY() = context.dpToPx(10f)
+    private fun ovalX() = if (shape == SHAPE_CIRCLE) radius else radius * 1.382f
+    private fun ovalY() = radius
     private fun startX() = ovalX()
     private fun endX() = rectF.width() - ovalX()
     private fun startY() = ovalY()
@@ -198,6 +214,8 @@ class DVDView @JvmOverloads constructor(
                 "calculate",
                 " handUp 异常情况：currentX =$currentX startX=${startX()} endx:${endX()} startX=${startX()} endx:${endX()}"
             )
+            animator.cancel()
+            state = STATE_ERROR
         }
     }
 
@@ -237,6 +255,8 @@ class DVDView @JvmOverloads constructor(
             }
         } else {
             Log.e("calculate", " handRevertUp 异常情况：currentY =$currentY startY=${startY()} endY:${endY()} ")
+            animator.cancel()
+            state = STATE_ERROR
         }
     }
 
@@ -266,7 +286,8 @@ class DVDView @JvmOverloads constructor(
             }
         } else {
             Log.e("calculate", " handDown 异常情况：currentY =$currentY startY=${startY()} endY:${endY()}")
-
+            animator.cancel()
+            state = STATE_ERROR
         }
     }
 
@@ -303,6 +324,8 @@ class DVDView @JvmOverloads constructor(
             }
         } else {
             Log.e("calculate", " handRecertDown 异常情况：currentX =$currentX startX=${startX()} endx:${endX()}")
+            animator.cancel()
+            state = STATE_ERROR
         }
     }
 
@@ -314,8 +337,19 @@ class DVDView @JvmOverloads constructor(
         return (sp * scale + 0.5f)
     }
 
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        animator.cancel()
+        state = STATE_ERROR
+
+    }
+
     companion object {
         const val STATE_DEFAULT = 1
+        //todo handle success
         const val STATE_SUCCESS = 2
+        const val STATE_ERROR = 3
+        const val SHAPE_OVAL = 1
+        const val SHAPE_CIRCLE = 0
     }
 }
