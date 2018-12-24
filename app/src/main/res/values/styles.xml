@@ -8,13 +8,4 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
-    <declare-styleable name="DVDView">
-        <attr name="DVDShape" format="enum">
-            <enum name="oval" value="1"/>
-            <enum name="circle" value="0"/>
-        </attr>
-        <attr name="DVDRadio" format="dimension"/>
-        <!--todo 开始位置 开始方向等指定-->
-    </declare-styleable>
-
 </resources>

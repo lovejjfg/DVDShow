@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
+    <declare-styleable name="DVDView">
+        <attr name="DVDShape" format="enum">
+            <enum name="oval" value="1"/>
+            <enum name="circle" value="0"/>
+        </attr>
+        <attr name="DVDRadio" format="dimension"/>
+        <!--todo 开始位置 开始方向等指定-->
+    </declare-styleable>
 </resources>
