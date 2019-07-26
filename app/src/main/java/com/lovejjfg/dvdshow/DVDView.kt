@@ -14,6 +14,9 @@ import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.animation.LinearInterpolator
+import kotlin.math.abs
+import kotlin.math.sqrt
+import kotlin.math.tan
 
 /**
  * Created by joe on 2018/12/22.
@@ -35,8 +38,8 @@ class DVDView @JvmOverloads constructor(
     private val tanFloatArray = FloatArray(8)
     private val animator = ValueAnimator()
     private var reCalculate = false
-    private var currentX = 0f
-    private var currentY = 0f
+    private var currentX = 0
+    private var currentY = 0
     private var tanValue = 1f
     private var needRevert = false
     private var maxLength = 0.toDouble()
@@ -91,8 +94,8 @@ class DVDView @JvmOverloads constructor(
                 paint.color = colors[calculateCount % colors.size]
                 startAngle += Math.PI / 2
             }
-            currentX = floatArray[0]
-            currentY = floatArray[1]
+            currentX = floatArray[0].toInt()
+            currentY = floatArray[1].toInt()
             ovalRectF.set(
                 currentX - 1.5f * radius, currentY - radius, currentX + 1.5f * radius,
                 currentY + radius
@@ -101,10 +104,10 @@ class DVDView @JvmOverloads constructor(
 
         }
         postDelayed({
-            currentX = ovalX()
-            currentY = rectF.height() * .4f
-            tanValue = Math.abs(Math.tan(startAngle).toFloat())
-            maxLength = Math.sqrt(rectF.width() * rectF.width().toDouble() + rectF.height() * rectF.height().toDouble())
+            currentX = ovalX().toInt()
+            currentY = (rectF.height() * .4f).toInt()
+            tanValue = abs(tan(startAngle).toFloat())
+            maxLength = sqrt(rectF.width() * rectF.width().toDouble() + rectF.height() * rectF.height().toDouble())
 
             calculate()
         }, 1000)
@@ -156,7 +159,7 @@ class DVDView @JvmOverloads constructor(
             }
         }
         path.reset()
-        path.moveTo(currentX, currentY)
+        path.moveTo(currentX.toFloat(), currentY.toFloat())
         if (startAngle < Math.PI / 2) {//(down)
             if (needRevert) {
                 handRecertDown()
@@ -186,29 +189,41 @@ class DVDView @JvmOverloads constructor(
     private fun endY() = rectF.height() - ovalY()
 
     private fun handUp() {
-        when (currentX) {
-            startX() -> {// normal
+        when {
+            isSizeInRange(currentX, startX()) -> {// normal
                 val resultX = startX() + (currentY - startY()) / tanValue
                 val dx = resultX - endX()
                 if (resultX > endX()) {
-                    Log.e("calculate", "上升 handUp:越界情况")
+                    Log.e(
+                        "calculate",
+                        "上升 handUp:越界情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     val dy = tanValue * (endX() - currentX)
                     path.lineTo(endX(), currentY - dy)
                 } else {
-                    Log.e("calculate", "上升 handUp:正常情况")
+                    Log.e(
+                        "calculate",
+                        "上升 handUp:正常情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     path.lineTo(resultX, startY())
                 }
                 needRevert = dx > 0
             }
-            endX() -> {// normal revert
+            isSizeInRange(currentX, endX()) -> {// normal revert
                 val resultX = (endY() - currentY) / tanValue
                 val dx = resultX - currentX
                 needRevert = if (currentX - resultX < startX()) {
-                    Log.e("calculate", " handUp 下降:越界情况")
+                    Log.e(
+                        "calculate",
+                        " handUp 下降:越界情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     path.lineTo(startX(), rectF.height() - dx * tanValue)
                     true
                 } else {
-                    Log.e("calculate", " handUp 下降:正常情况")
+                    Log.e(
+                        "calculate",
+                        "handUp 下降:正常情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     path.lineTo(currentX - resultX, rectF.height() - ovalY())
                     false
                 }
@@ -216,7 +231,7 @@ class DVDView @JvmOverloads constructor(
             else -> {
                 Log.e(
                     "calculate",
-                    " handUp 异常情况：currentX =$currentX startX=${startX()} endx:${endX()} startX=${startX()} endx:${endX()}"
+                    " handUp 异常情况：currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
                 )
                 animator.cancel()
                 state = STATE_ERROR
@@ -225,75 +240,105 @@ class DVDView @JvmOverloads constructor(
     }
 
     private fun handRevertUp() {
-        if (currentY == startY()) {// normal
+        if (isSizeInRange(currentY, startY())) {// normal
             val resultX = currentX - startX()
             val resultY = tanValue * resultX + startY()
             needRevert = if (resultY > endY()) {
                 val dx = (endY() - currentY) / tanValue
-                Log.e("calculate", "下降 handRevertUp:越界情况")
+                Log.e(
+                    "calculate",
+                    "下降 handRevertUp:越界情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                )
                 path.lineTo(currentX - dx, endY())
                 if (currentX - dx < startX()) {
-                    throw RuntimeException("${currentX - dx} 不符合规范")
+                    throw RuntimeException("${currentX - dx} 不符合规范 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}")
                 }
                 false
             } else {
-                Log.e("calculate", "下降 handRevertUp:正常情况")
+                Log.e(
+                    "calculate",
+                    "下降 handRevertUp:正常情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                )
                 path.lineTo(startX(), resultY)
                 true
             }
-        } else if (currentY == endY()) {// normal revert
+        } else if (isSizeInRange(currentY, endY())) {// normal revert
             var resultX = endX()
             val dx = resultX - currentX
             val resultY = currentY - dx * tanValue
             if (resultY < startY()) {
                 val ddy = currentY - startY()
                 val ddx = ddy / tanValue
-                Log.e("calculate", " handRevertUp 上升:越界情况")
+                Log.e(
+                    "calculate",
+                    " handRevertUp 上升:越界情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                )
                 resultX = currentX + ddx
                 path.lineTo(resultX, startY())
                 needRevert = false
             } else {
                 //fix
-                Log.e("calculate", " handRevertUp 上升:正常情况")
+                Log.e(
+                    "calculate",
+                    " handRevertUp 上升:正常情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                )
                 path.lineTo(endX(), resultY)
                 needRevert = true
             }
         } else {
-            Log.e("calculate", " handRevertUp 异常情况：currentY =$currentY startY=${startY()} endY:${endY()} ")
+            Log.e(
+                "calculate",
+                " handRevertUp 异常情况：currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()} "
+            )
             animator.cancel()
             state = STATE_ERROR
         }
     }
 
     private fun handDown() {
-        when (currentY) {
-            startY() -> {//&& currentX != right// normal
+        when {
+            isSizeInRange(currentY, startY()) -> {//&& currentX != right// normal
                 val resultY = (endX() - currentX) * tanValue + startY()
                 needRevert = if (resultY > endY()) {
                     path.lineTo(currentX + (endY() - startY()) / tanValue, endY())
-                    Log.e("calculate", " handDown 下降:越界情况")
+                    Log.e(
+                        "calculate",
+                        " handDown 下降:越界情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     true
                 } else {
                     path.lineTo(endX(), resultY)
-                    Log.e("calculate", " handDown 下降:正常情况")
+                    Log.e(
+                        "calculate",
+                        " handDown 下降:正常情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     false
                 }
             }
-            endY() -> { // normal revert
+            isSizeInRange(currentY, endY()) -> { // normal revert
                 val resultY = currentY - (currentX - startX()) * tanValue
                 val dy = currentY - startY()
                 needRevert = if (resultY < startY()) {
                     path.lineTo(currentX - dy / tanValue, startY())
-                    Log.e("calculate", "上升 handDown:越界情况")
+                    Log.e(
+                        "calculate",
+                        "上升 handDown:越界情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     true
                 } else {
                     path.lineTo(startX(), currentY - (currentX - startX()) * tanValue)
-                    Log.e("calculate", "上升 handDown:正常情况")
+                    Log.e(
+                        "calculate",
+                        "上升 handDown:正常情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     false
                 }
             }
             else -> {
-                Log.e("calculate", " handDown 异常情况：currentY =$currentY startY=${startY()} endY:${endY()}")
+                Log.e(
+                    "calculate",
+                    " handDown 异常情况：currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                )
                 animator.cancel()
                 state = STATE_ERROR
             }
@@ -301,8 +346,8 @@ class DVDView @JvmOverloads constructor(
     }
 
     private fun handRecertDown() {
-        when (currentX) {
-            endX() -> {//&& currentX != right// normal
+        when {
+            isSizeInRange(currentX, endX()) -> {//&& currentX != right// normal
                 val resultY = startY()
                 val resultX = (currentY - resultY) / tanValue
                 needRevert = if (resultX > rectF.width() - ovalX()) {
@@ -310,36 +355,55 @@ class DVDView @JvmOverloads constructor(
                     val dx = currentX - startX()
                     val dy = dx * tanValue
                     path.lineTo(startX(), dy)
-                    Log.e("calculate", "上升 handRecertDown:越界情况")
+                    Log.e(
+                        "calculate",
+                        "上升 handRecertDown:越界情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     false
                 } else {
                     //fix
                     path.lineTo(currentX - resultX, startY())
-                    Log.e("calculate", "上升 handRecertDown:正常情况")
+                    Log.e(
+                        "calculate",
+                        "上升 handRecertDown:正常情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     true
                 }
             }
-            startX() -> { // normal revert
+            isSizeInRange(currentX, startX()) -> { // normal revert
                 val dy = endY() - currentY
                 val resultX = dy / tanValue + startX()
                 needRevert = if (resultX > endX()) {
                     val dx = endX() - currentX
                     val resultY = currentY + dx * tanValue
                     path.lineTo(endX(), resultY)
-                    Log.e("calculate", " handRecertDown 下降:越界情况")
+                    Log.e(
+                        "calculate",
+                        " handRecertDown 下降:越界情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     false
                 } else {
                     path.lineTo(resultX, endY())
-                    Log.e("calculate", " handRecertDown 下降:正常情况")
+                    Log.e(
+                        "calculate",
+                        " handRecertDown 下降:正常情况 currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                    )
                     true
                 }
             }
             else -> {
-                Log.e("calculate", " handRecertDown 异常情况：currentX =$currentX startX=${startX()} endx:${endX()}")
+                Log.e(
+                    "calculate",
+                    " handRecertDown 异常情况：currentX =$currentX startX=${startX()} endx:${endX()}  currentY=$currentY startY=${startY()} endY:${endY()}"
+                )
                 animator.cancel()
                 state = STATE_ERROR
             }
         }
+    }
+
+    private fun isSizeInRange(real: Int, except: Float, range: Int = 1): Boolean {
+        return real >= except - range && real <= except + range
     }
 
     private fun Context.dpToPx(dp: Float) =
@@ -354,7 +418,6 @@ class DVDView @JvmOverloads constructor(
         super.onDetachedFromWindow()
         animator.cancel()
         state = STATE_ERROR
-
     }
 
     companion object {
