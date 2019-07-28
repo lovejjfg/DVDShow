@@ -30,6 +30,7 @@ class DVDView @JvmOverloads constructor(
     private val textPaint: Paint = Paint(paint)
     private val rectF = RectF()
     private val ovalRectF = RectF()
+    private val circleRectF = RectF()
     private var startAngle = (Math.PI * 2 / 3)
     private val startSide = 0
     private val path = Path()
@@ -43,7 +44,7 @@ class DVDView @JvmOverloads constructor(
     private var tanValue = 1f
     private var needRevert = false
     private var maxLength = 0.toDouble()
-    private val maxDuration: Long = 2000
+    private val maxDuration: Long = 500
     private var radius = 40f
     private var hintText = "DVD"
     private var textWidth = 0
@@ -97,20 +98,70 @@ class DVDView @JvmOverloads constructor(
             currentX = floatArray[0].toInt()
             currentY = floatArray[1].toInt()
             ovalRectF.set(
-                currentX - 1.5f * radius, currentY - radius, currentX + 1.5f * radius,
+                currentX - 1.382f * radius, currentY - radius, currentX + 1.382f * radius,
                 currentY + radius
             )
+            circleRectF.set(currentX - radius, currentY - radius, currentX + radius, currentY + radius)
             invalidate()
+            if (it.animatedFraction == 0f || it.animatedFraction == 1f) {
+                if (checkFinish()) {
+                    // todo
+                }
+            }
 
         }
         postDelayed({
-            currentX = ovalX().toInt()
+            currentX = endX().toInt()
             currentY = (rectF.height() * .4f).toInt()
             tanValue = abs(tan(startAngle).toFloat())
             maxLength = sqrt(rectF.width() * rectF.width().toDouble() + rectF.height() * rectF.height().toDouble())
 
             calculate()
         }, 1000)
+    }
+
+    private fun checkFinish(): Boolean {
+        return if (shape == SHAPE_CIRCLE) {
+            checkRectF(circleRectF)
+        } else {
+            checkRectF(ovalRectF)
+        }
+    }
+
+    private fun checkRectF(rectF: RectF): Boolean {
+        if (isSizeInRange(rectF.top.toInt(), 0f)) {
+            // top left \ right
+            if (isSizeInRange(rectF.left.toInt(), 0f, 10) ||
+                isSizeInRange(rectF.right.toInt(), this.rectF.width(), 10)) {
+                animator.cancel()
+                return true
+            }
+        } else if (isSizeInRange(rectF.bottom.toInt(), this.rectF.height())) {
+            // bottom left \ right
+            if (isSizeInRange(rectF.left.toInt(), 0f, 10) ||
+                isSizeInRange(rectF.right.toInt(), this.rectF.width(), 10)) {
+                animator.cancel()
+                return true
+            }
+        } else if (isSizeInRange(rectF.left.toInt(), 0f)) {
+            // left top\bottom
+            if (isSizeInRange(rectF.top.toInt(), 0f, 10) ||
+                isSizeInRange(rectF.bottom.toInt(), this.rectF.height(), 10)) {
+                animator.cancel()
+                return true
+            }
+        } else if (isSizeInRange(rectF.right.toInt(), 0f)) {
+            // right top\bottom
+            if (isSizeInRange(rectF.top.toInt(), 0f, 10) ||
+                isSizeInRange(rectF.bottom.toInt(), this.rectF.height(), 10)) {
+                animator.cancel()
+                return true
+            }
+        } else {
+            return false
+        }
+
+        return false
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {

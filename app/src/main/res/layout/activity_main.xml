@@ -21,9 +21,9 @@
 
     <!--android:layout_height="346.4dp"-->
     <com.lovejjfg.dvdshow.DVDView
-        android:layout_width="220dp"
-        android:layout_height="330dp"
-        app:DVDShape="oval"
+        android:layout_width="330dp"
+        android:layout_height="200dp"
+        app:DVDShape="circle"
         android:background="@color/colorPrimaryDark"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
